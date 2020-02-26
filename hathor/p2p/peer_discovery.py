@@ -77,6 +77,7 @@ class DNSPeerDiscovery(PeerDiscovery):
         d = defer.gatherResults([
             twisted.names.client.lookupText(host).addCallback(self.dns_seed_lookup_text),
             twisted.names.client.lookupAddress(host).addCallback(self.dns_seed_lookup_address),
+            twisted.names.client.lookupAddress6(host).addCallback(self.dns_seed_lookup_ipv6_address),
         ])
         results = yield d
         unique_urls: Set[str] = set()
@@ -114,5 +115,22 @@ class DNSPeerDiscovery(PeerDiscovery):
             host = socket.inet_ntoa(address)
             txt = 'tcp://{}:{}'.format(host, self.default_port)
             self.log.info('Seed DNS A: {host!r} found, connecting to {txt!r}', host=host, txt=txt)
+            ret.append(txt)
+        return ret
+
+    def dns_seed_lookup_ipv6_address(
+        self, results: Tuple[List['RRHeader'], List['RRHeader'], List['RRHeader']]
+    ) -> List[str]:
+        """ Run a DNS lookup for A records to discover new peers.
+
+        The `results` has three lists that contain answer records, authority records, and additional records.
+        """
+        answers, _, _ = results
+        ret: List[str] = []
+        for record in answers:
+            address = record.payload.address
+            host = socket.inet_ntop(socket.AF_INET6, address)
+            txt = 'tcp://[{}]:{}'.format(host, self.default_port)
+            self.log.info('Seed DNS AAAA: {host!r} found, connecting to {txt!r}', host=host, txt=txt)
             ret.append(txt)
         return ret
