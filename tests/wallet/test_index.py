@@ -5,7 +5,9 @@ from tests import unittest
 from tests.utils import add_blocks_unlock_reward, add_new_blocks
 
 
-class TwinTransactionTestCase(unittest.TestCase):
+class BaseWalletIndexTest(unittest.TestCase):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
 
@@ -51,3 +53,22 @@ class TwinTransactionTestCase(unittest.TestCase):
         wallet_data = self.manager.tx_storage.wallet_index.get_from_address(address)
         self.assertEqual(len(wallet_data), 2)
         self.assertEqual(set(wallet_data), set([tx1.hash, tx2.hash]))
+
+
+class SyncV1WalletIndexTest(BaseWalletIndexTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2WalletIndexTest(BaseWalletIndexTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeWalletIndexTest(SyncV2WalletIndexTest):
+    _enable_sync_v1 = True

@@ -8,7 +8,9 @@ from tests.resources.base_resource import StubSite, _BaseResourceTest
 from tests.utils import resolve_block_bytes
 
 
-class HistoryTest(_BaseResourceTest._ResourceTest):
+class BaseHistoryTest(_BaseResourceTest._ResourceTest):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
         self.web = StubSite(HistoryResource(self.manager))
@@ -27,3 +29,22 @@ class HistoryTest(_BaseResourceTest._ResourceTest):
         data = response.json_value()
         self.assertEqual(len(data['history']), 1)
         self.assertEqual(data['total_pages'], 1)
+
+
+class SyncV1HistoryTest(BaseHistoryTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2HistoryTest(BaseHistoryTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeHistoryTest(SyncV2HistoryTest):
+    _enable_sync_v1 = True

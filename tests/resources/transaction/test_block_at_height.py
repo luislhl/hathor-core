@@ -5,7 +5,9 @@ from tests.resources.base_resource import StubSite, _BaseResourceTest
 from tests.utils import add_new_blocks
 
 
-class BlockAtHeightTest(_BaseResourceTest._ResourceTest):
+class BaseBlockAtHeightTest(_BaseResourceTest._ResourceTest):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
         self.web = StubSite(BlockAtHeightResource(self.manager))
@@ -48,3 +50,22 @@ class BlockAtHeightTest(_BaseResourceTest._ResourceTest):
         response6 = yield self.web.get("block_at_height", {b'height': b'5'})
         data6 = response6.json_value()
         self.assertFalse(data6['success'])
+
+
+class SyncV1BlockAtHeightTest(BaseBlockAtHeightTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2BlockAtHeightTest(BaseBlockAtHeightTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeBlockAtHeightTest(SyncV2BlockAtHeightTest):
+    _enable_sync_v1 = True

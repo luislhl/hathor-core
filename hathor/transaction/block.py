@@ -16,6 +16,8 @@ import base64
 from struct import pack
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
+from structlog import get_logger
+
 from hathor import daa, protos
 from hathor.conf import HathorSettings
 from hathor.profiler import get_cpu_profiler
@@ -34,6 +36,7 @@ if TYPE_CHECKING:
 
 settings = HathorSettings()
 cpu = get_cpu_profiler()
+logger = get_logger()
 
 # Version (H), outputs len (B)
 _FUNDS_FORMAT_STRING = '!HB'
@@ -136,7 +139,7 @@ class Block(BaseTransaction):
         parent_block = self.get_block_parent()
         return parent_block.get_metadata().height + 1
 
-    def get_next_block_best_chain_hash(self) -> Optional[bytes]:
+    def get_next_block_best_chain_hash(self) -> List[bytes]:
         """Return the hash of the next (child/left-to-right) block in the best blockchain.
         """
         assert self.storage is not None
@@ -151,20 +154,30 @@ class Block(BaseTransaction):
             if blk_meta.voided_by:
                 continue
             candidates.append(h)
-
-        if len(candidates) == 0:
-            return None
-        assert len(candidates) == 1
-        return candidates[0]
+        return candidates
 
     def get_next_block_best_chain(self) -> Optional['Block']:
         """Return the next (child/left-to-right)block in the best blockchain.
         """
         assert self.storage is not None
-        h = self.get_next_block_best_chain_hash()
-        if h is None:
+        hashes = self.get_next_block_best_chain_hash()
+        if not hashes:
             return None
-        tx = self.storage.get_transaction(h)
+
+        tx: BaseTransaction
+        if len(hashes) == 1:
+            tx = self.storage.get_transaction(hashes[0])
+        else:
+            logger.debug('multiple next block candidate, looking for best score', n=len(hashes))
+            txs = [self.storage.get_transaction(h) for h in hashes]
+            best_score = max(tx.get_metadata().score for tx in txs)
+            txs_with_best_score = [tx for tx in txs if tx.get_metadata().score == best_score]
+            if len(txs_with_best_score) == 1:
+                tx = txs_with_best_score[0]
+            else:
+                logger.debug('multiple next blocks with same score', n=len(txs_with_best_score), score=best_score)
+                # XXX: using the lowest numeric hash to choose between blocks with same score
+                _, tx = min((int(tx.hash_hex, self.HEX_BASE), tx) for tx in txs_with_best_score)
         assert isinstance(tx, Block)
         return tx
 

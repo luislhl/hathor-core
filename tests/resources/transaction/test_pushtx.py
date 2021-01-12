@@ -179,9 +179,51 @@ class _BaseTests:
             self.assertEqual(expected, data['message'])
 
 
-class PushTxGetTest(_BaseTests.PushTxTest):
+class BasePushTxGetTest(_BaseTests.PushTxTest):
+    __test__ = False
+
     is_post = False
 
 
-class PushTxPostTest(_BaseTests.PushTxTest):
+class BasePushTxPostTest(_BaseTests.PushTxTest):
+    __test__ = False
+
     is_post = True
+
+
+class SyncV1PushTxGetTest(BasePushTxGetTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2PushTxGetTest(BasePushTxGetTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgePushTxGetTest(SyncV2PushTxGetTest):
+    _enable_sync_v1 = True
+
+
+class SyncV1PushTxPostTest(BasePushTxPostTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2PushTxPostTest(BasePushTxPostTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgePushTxPostTest(SyncV2PushTxPostTest):
+    _enable_sync_v1 = True

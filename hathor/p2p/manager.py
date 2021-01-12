@@ -30,6 +30,7 @@ from hathor.p2p.peer_id import PeerId
 from hathor.p2p.peer_storage import PeerStorage
 from hathor.p2p.protocol import HathorProtocol
 from hathor.p2p.states.ready import ReadyState
+from hathor.p2p.sync_checkpoints import SyncCheckpoint
 from hathor.p2p.utils import description_to_connection_string, parse_whitelist
 from hathor.pubsub import HathorEvents, PubSubManager
 from hathor.transaction import BaseTransaction
@@ -51,10 +52,12 @@ class ConnectionsManager:
     connected_peers: Dict[str, HathorProtocol]
     connecting_peers: Dict[IStreamClientEndpoint, Deferred]
     handshaking_peers: Set[HathorProtocol]
+    sync_checkpoints: SyncCheckpoint
+    whitelist_only: bool
 
     def __init__(self, reactor: ReactorBase, my_peer: PeerId, server_factory: 'HathorServerFactory',
                  client_factory: 'HathorClientFactory', pubsub: PubSubManager, manager: 'HathorManager',
-                 ssl: bool) -> None:
+                 ssl: bool, whitelist_only: bool) -> None:
         self.log = logger.new()
 
         self.reactor = reactor
@@ -103,6 +106,12 @@ class ConnectionsManager:
         self.pubsub = pubsub
 
         self.ssl = ssl
+
+        # Object that handles the sync until the last checkpoint for all peers
+        self.sync_checkpoints = SyncCheckpoint(manager)
+
+        # Parameter to explicitly enable whitelist-only mode, when False it will still check the whitelist for sync-v1
+        self.whitelist_only = whitelist_only
 
     def start(self) -> None:
         self.lc_reconnect.start(5, now=False)

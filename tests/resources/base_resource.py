@@ -16,12 +16,23 @@ class _BaseResourceTest:
             network = 'testnet'
             wallet = self._create_test_wallet()
             tx_storage = getattr(self, 'tx_storage', None)
+            assert (
+                hasattr(self, '_enable_sync_v1') and
+                hasattr(self, '_enable_sync_v2') and
+                (self._enable_sync_v1 or self._enable_sync_v2)
+            ), (
+                'Please set both `_enable_sync_v1` and `_enable_sync_v2` on the class. '
+                'Also they can\'t both be False. '
+                'This is by design so we don\'t forget to test for multiple sync versions.'
+            )
             return dict(
                 peer_id=peer_id,
                 network=network,
                 wallet=wallet,
                 tx_storage=tx_storage,
-                wallet_index=True
+                wallet_index=True,
+                enable_sync_v1=self._enable_sync_v1,
+                enable_sync_v2=self._enable_sync_v2,
             )
 
         def setUp(self):

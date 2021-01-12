@@ -36,7 +36,7 @@ class TransactionCompactStorage(BaseTransactionStorage):
     It also uses JSON format. Saved file is of format {'tx': {...}, 'meta': {...}}
     """
 
-    def __init__(self, path: str = './', with_index: bool = True):
+    def __init__(self, path: str = './', with_index: bool = True, with_all_index: bool = False):
         self.tx_path = os.path.join(path, 'tx')
         os.makedirs(self.tx_path, exist_ok=True)
 
@@ -47,7 +47,7 @@ class TransactionCompactStorage(BaseTransactionStorage):
         self.attributes_path = os.path.join(path, 'attributes')
         os.makedirs(self.attributes_path, exist_ok=True)
 
-        super().__init__(with_index=with_index)
+        super().__init__(with_index=with_index, with_all_index=with_all_index)
 
     def create_subfolders(self, path: str, num_subfolders: int) -> None:
         """ Create subfolders in the main tx storage folder.

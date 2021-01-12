@@ -7,7 +7,9 @@ from hathor.transaction import Block
 from tests.resources.base_resource import StubSite, _BaseResourceTest
 
 
-class MiningTest(_BaseResourceTest._ResourceTest):
+class BaseMiningTest(_BaseResourceTest._ResourceTest):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
         self.web = StubSite(MiningResource(self.manager))
@@ -69,3 +71,22 @@ class MiningTest(_BaseResourceTest._ResourceTest):
         # invalid base64
         response_post = yield self.web.post('mining', {'block_bytes': 'YWFha'})
         self.assertEqual(response_post.written[0], b'0')
+
+
+class SyncV1MiningTest(BaseMiningTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2MiningTest(BaseMiningTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeMiningTest(SyncV2MiningTest):
+    _enable_sync_v1 = True

@@ -80,6 +80,8 @@ class RunNode:
         parser.add_argument('--max-output-script-size', type=int, default=None, help='Custom max accepted script size '
                             'on /push-tx API')
         parser.add_argument('--sentry-dsn', help='Sentry DSN')
+        parser.add_argument('--x-sync-bridge', action='store_true',
+                            help='Enable support for running both sync protocols. DO NOT ENABLE, IT WILL BREAK.')
         return parser
 
     def prepare(self, args: Namespace) -> None:
@@ -176,22 +178,24 @@ class RunNode:
         if args.memory_storage:
             check_or_exit(not args.data, '--data should not be used with --memory-storage')
             # if using MemoryStorage, no need to have cache
-            tx_storage = TransactionMemoryStorage()
+            tx_storage = TransactionMemoryStorage(with_all_index=True)
             self.log.info('with storage', storage_class=type(tx_storage).__name__)
         elif args.json_storage:
             check_or_exit(args.data, '--data is expected')
-            tx_storage = TransactionCompactStorage(path=args.data, with_index=(not args.cache))
+            tx_storage = TransactionCompactStorage(path=args.data, with_index=(not args.cache),
+                                                   with_all_index=(not args.cache))
         elif args.old_rocksdb_storage:
             check_or_exit(args.data, '--data is expected')
             self.log.warn('the old rocksdb storage is deprecated and support will be removed')
-            tx_storage = TransactionOldRocksDBStorage(path=args.data)
+            tx_storage = TransactionOldRocksDBStorage(path=args.data, with_index=(not args.cache),
+                                                      with_all_index=(not args.cache))
         else:
             check_or_exit(args.data, '--data is expected')
             if args.rocksdb_storage:
                 self.log.warn('--rocksdb-storage is now implied, no need to specify it')
             cache_capacity = args.rocksdb_cache
             tx_storage = TransactionRocksDBStorage(path=args.data, with_index=(not args.cache),
-                                                   cache_capacity=cache_capacity)
+                                                   with_all_index=(not args.cache), cache_capacity=cache_capacity)
         self.log.info('with storage', storage_class=type(tx_storage).__name__, path=args.data)
         if args.cache:
             check_or_exit(not args.memory_storage, '--cache should not be used with --memory-storage')
@@ -227,7 +231,8 @@ class RunNode:
         network = settings.NETWORK_NAME
         self.manager = HathorManager(reactor, peer_id=peer_id, network=network, hostname=hostname,
                                      tx_storage=self.tx_storage, wallet=self.wallet, wallet_index=args.wallet_index,
-                                     stratum_port=args.stratum, ssl=True, checkpoints=settings.CHECKPOINTS)
+                                     stratum_port=args.stratum, ssl=True, checkpoints=settings.CHECKPOINTS,
+                                     enable_sync_v1=True, enable_sync_v2=args.x_sync_bridge)
         if args.allow_mining_without_peers:
             self.manager.allow_mining_without_peers()
 

@@ -5,7 +5,9 @@ from hathor.wallet.resources import LockWalletResource, StateWalletResource, Unl
 from tests.resources.base_resource import StubSite, _BaseResourceTest
 
 
-class UnlockTest(_BaseResourceTest._ResourceTest):
+class BaseUnlockTest(_BaseResourceTest._ResourceTest):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
         self.web = StubSite(UnlockWalletResource(self.manager))
@@ -79,3 +81,22 @@ class UnlockTest(_BaseResourceTest._ResourceTest):
         response_words = yield self.web.post("wallet/unlock", {'words': data_success['words'], 'passphrase': ''})
         data_words = response_words.json_value()
         self.assertTrue(data_words['success'])
+
+
+class SyncV1UnlockTest(BaseUnlockTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2UnlockTest(BaseUnlockTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeUnlockTest(SyncV2UnlockTest):
+    _enable_sync_v1 = True

@@ -30,7 +30,9 @@ def _send_subscribe(protocol, id=None):
     protocol.lineReceived('{{"jsonrpc": "2.0", "id": "{}", "method": "subscribe"}}'.format(id).encode())
 
 
-class StratumTestBase(unittest.TestCase):
+class _BaseStratumTest(unittest.TestCase):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
         self.manager = self.create_peer('testnet')
@@ -55,7 +57,8 @@ class StratumTestBase(unittest.TestCase):
         return json_loads(data)
 
 
-class TestStratum(StratumTestBase):
+class BaseStratumServerTest(_BaseStratumTest):
+    __test__ = False
 
     def test_parse_error(self):
         self.protocol.lineReceived(b'{]')
@@ -137,7 +140,26 @@ class TestStratum(StratumTestBase):
         self.assertEqual(job['method'], 'job')
 
 
-class TestStratumJob(StratumTestBase):
+class SyncV1StratumServerTest(BaseStratumServerTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2StratumServerTest(BaseStratumServerTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeStratumServerTest(SyncV2StratumServerTest):
+    _enable_sync_v1 = True
+
+
+class BaseStratumJobTest(_BaseStratumTest):
     def _get_nonce(self, valid=True):
         target = 2**(256 - self.job['weight']) - 1
         base = sha256(bytes.fromhex(self.job['data']))
@@ -215,7 +237,28 @@ class TestStratumJob(StratumTestBase):
         self.assertTrue(job.weight >= 1, f'job weight of {job.weight} is too small')
 
 
-class StratumClientTest(unittest.TestCase):
+class SyncV1StratumJobTest(BaseStratumJobTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2StratumJobTest(BaseStratumJobTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeStratumJobTest(SyncV2StratumJobTest):
+    _enable_sync_v1 = True
+
+
+class BaseStratumClientTest(unittest.TestCase):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
         from hathor.transaction.genesis import _get_genesis_transactions_unsafe
@@ -259,3 +302,22 @@ class StratumClientTest(unittest.TestCase):
             self.block.nonce = int(nonce, 16)
             self.block.update_hash()
             self.block.verify_pow()
+
+
+class SyncV1StratumClientTest(BaseStratumClientTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2StratumClientTest(BaseStratumClientTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeStratumClientTest(SyncV2StratumClientTest):
+    _enable_sync_v1 = True

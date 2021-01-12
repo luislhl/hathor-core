@@ -35,7 +35,8 @@ class TransactionRocksDBStorage(BaseTransactionStorage):
     It uses Protobuf serialization internally.
     """
 
-    def __init__(self, path: str = './', with_index: bool = True, cache_capacity: Optional[int] = None):
+    def __init__(self, path: str = './', with_index: bool = True, with_all_index: bool = False,
+                 cache_capacity: Optional[int] = None):
         import rocksdb
 
         self._path = path
@@ -72,7 +73,7 @@ class TransactionRocksDBStorage(BaseTransactionStorage):
         self._cf_meta = self._db.get_column_family(_CF_NAME_META)
         self._cf_attr = self._db.get_column_family(_CF_NAME_ATTR)
 
-        super().__init__(with_index=with_index)
+        super().__init__(with_index=with_index, with_all_index=with_all_index)
 
     def _load_from_bytes(self, tx_data: bytes, meta_data: bytes) -> 'BaseTransaction':
         from hathor.transaction.base_transaction import tx_or_block_from_bytes

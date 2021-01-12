@@ -6,7 +6,9 @@ from tests.resources.base_resource import StubSite, _BaseResourceTest
 from tests.utils import add_blocks_unlock_reward, add_new_blocks, add_new_transactions
 
 
-class TransactionTest(_BaseResourceTest._ResourceTest):
+class BaseTransactionTest(_BaseResourceTest._ResourceTest):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
         self.web = StubSite(TransactionResource(self.manager))
@@ -231,3 +233,22 @@ class TransactionTest(_BaseResourceTest._ResourceTest):
                 })
         data = response.json_value()
         self.assertFalse(data['success'])
+
+
+class SyncV1TransactionTest(BaseTransactionTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2TransactionTest(BaseTransactionTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeTransactionTest(SyncV2TransactionTest):
+    _enable_sync_v1 = True

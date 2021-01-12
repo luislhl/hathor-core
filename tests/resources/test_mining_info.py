@@ -8,7 +8,9 @@ from tests.utils import add_new_blocks
 settings = HathorSettings()
 
 
-class GetMiningInfoTest(_BaseResourceTest._ResourceTest):
+class BaseGetMiningInfoTest(_BaseResourceTest._ResourceTest):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
         self.web = StubSite(MiningInfoResource(self.manager))
@@ -61,3 +63,22 @@ class GetMiningInfoTest(_BaseResourceTest._ResourceTest):
         data = response.json_value()
         self.assertEqual(data['blocks'], settings.BLOCKS_PER_HALVING + 20)
         self.assertEqual(data['mined_tokens'], mined_tokens)
+
+
+class SyncV1GetMiningInfoTest(BaseGetMiningInfoTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2GetMiningInfoTest(BaseGetMiningInfoTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeGetMiningInfoTest(SyncV2GetMiningInfoTest):
+    _enable_sync_v1 = True

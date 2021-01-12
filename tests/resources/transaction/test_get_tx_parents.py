@@ -4,7 +4,9 @@ from hathor.transaction.resources import TxParentsResource
 from tests.resources.base_resource import StubSite, _BaseResourceTest
 
 
-class DecodeTxTest(_BaseResourceTest._ResourceTest):
+class BaseDecodeTxTest(_BaseResourceTest._ResourceTest):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
         self.web = StubSite(TxParentsResource(self.manager))
@@ -25,3 +27,22 @@ class DecodeTxTest(_BaseResourceTest._ResourceTest):
         data = resp.json_value()
 
         self.assertFalse(data['success'])
+
+
+class SyncV1DecodeTxTest(BaseDecodeTxTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2DecodeTxTest(BaseDecodeTxTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeDecodeTxTest(SyncV2DecodeTxTest):
+    _enable_sync_v1 = True

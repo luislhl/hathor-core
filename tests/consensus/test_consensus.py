@@ -12,7 +12,9 @@ from tests.utils import (
 settings = HathorSettings()
 
 
-class ConsensusTestCase(unittest.TestCase):
+class BaseConsensusTestCase(unittest.TestCase):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
         self.tx_storage = TransactionMemoryStorage()
@@ -149,10 +151,10 @@ class ConsensusTestCase(unittest.TestCase):
         add_blocks_unlock_reward(manager)
 
         # Add some transactions between blocks
-        add_new_transactions(manager, 5, advance_clock=15)
+        txs = add_new_transactions(manager, 5, advance_clock=15)
 
         # Create a double spending transaction.
-        conflicting_tx = add_new_double_spending(manager)
+        conflicting_tx = add_new_double_spending(manager, tx=txs[-1])
         meta = conflicting_tx.get_metadata()
         self.assertEqual(len(meta.conflict_with), 1)
         self.assertIn(list(meta.conflict_with)[0], conflicting_tx.parents)
@@ -245,3 +247,22 @@ class ConsensusTestCase(unittest.TestCase):
             self.assertIsNone(meta.voided_by)
 
         self.assertConsensusValid(manager)
+
+
+class SyncV1ConsensusTestCase(BaseConsensusTestCase):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2ConsensusTestCase(BaseConsensusTestCase):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeConsensusTestCase(SyncV2ConsensusTestCase):
+    _enable_sync_v1 = True

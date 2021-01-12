@@ -11,7 +11,9 @@ from hathor.profiler.resources import ProfilerResource
 from tests.resources.base_resource import StubSite, _BaseResourceTest
 
 
-class ProfilerTest(_BaseResourceTest._ResourceTest):
+class BaseProfilerTest(_BaseResourceTest._ResourceTest):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
         self.web = StubSite(ProfilerResource(self.manager))
@@ -60,3 +62,22 @@ class ProfilerTest(_BaseResourceTest._ResourceTest):
         filename_arr = filename.split('/')
         self.assertEqual(filename_arr[0], 'profiles')
         self.assertTrue(re.search(r'^profile\d{3}\.prof$', filename_arr[1]))
+
+
+class SyncV1ProfilerTest(BaseProfilerTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2ProfilerTest(BaseProfilerTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeProfilerTest(SyncV2ProfilerTest):
+    _enable_sync_v1 = True

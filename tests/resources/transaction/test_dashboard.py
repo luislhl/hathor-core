@@ -4,7 +4,9 @@ from hathor.transaction.resources import DashboardTransactionResource
 from tests.resources.base_resource import StubSite, _BaseResourceTest
 
 
-class DashboardTest(_BaseResourceTest._ResourceTest):
+class BaseDashboardTest(_BaseResourceTest._ResourceTest):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
         self.web = StubSite(DashboardTransactionResource(self.manager))
@@ -40,3 +42,22 @@ class DashboardTest(_BaseResourceTest._ResourceTest):
         response = yield self.web.get("dashboard_tx", {b'block': b'6'})
         data = response.json_value()
         self.assertFalse(data['success'])
+
+
+class SyncV1DashboardTest(BaseDashboardTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2DashboardTest(BaseDashboardTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeDashboardTest(SyncV2DashboardTest):
+    _enable_sync_v1 = True

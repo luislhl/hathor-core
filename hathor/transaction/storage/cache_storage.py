@@ -32,7 +32,7 @@ class TransactionCacheStorage(BaseTransactionStorage):
     dirty_txs: Set[bytes]
 
     def __init__(self, store: 'BaseTransactionStorage', reactor: 'Reactor', interval: int = 5,
-                 capacity: int = 10000, *, _clone_if_needed: bool = False):
+                 capacity: int = 10000, *, _clone_if_needed: bool = False, with_all_index: bool = False):
         """
         :param store: a subclass of BaseTransactionStorage
         :type store: :py:class:`hathor.transaction.storage.BaseTransactionStorage`
@@ -64,7 +64,7 @@ class TransactionCacheStorage(BaseTransactionStorage):
 
         # we need to use only one weakref dict, so we must first initialize super, and then
         # attribute the same weakref for both.
-        super().__init__()
+        super().__init__(with_index=True, with_all_index=with_all_index)
         self._tx_weakref = store._tx_weakref
 
     def _clone(self, x: BaseTransaction) -> BaseTransaction:

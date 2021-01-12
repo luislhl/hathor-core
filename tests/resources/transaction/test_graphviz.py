@@ -6,7 +6,9 @@ from tests.resources.base_resource import StubSite, TestDummyRequest, _BaseResou
 from tests.utils import add_blocks_unlock_reward, add_new_blocks, add_new_transactions
 
 
-class _GraphvizBase(_BaseResourceTest._ResourceTest):
+class BaseGraphvizTest(_BaseResourceTest._ResourceTest):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
         self.resource = self.create_resource()
@@ -28,7 +30,9 @@ class _GraphvizBase(_BaseResourceTest._ResourceTest):
         self.manager.propagate_tx(self.tx2)
 
 
-class GraphvizFullTest(_GraphvizBase):
+class _GraphvizFullTest:
+    __test__ = False
+
     def create_resource(self):
         return GraphvizFullResource(self.manager, format='dot')
 
@@ -73,7 +77,9 @@ class GraphvizFullTest(_GraphvizBase):
         self.assertIsNone(request._finishedDeferreds)
 
 
-class GraphvizNeigboursTest(_GraphvizBase):
+class _GraphvizNeigboursTest:
+    __test__ = False
+
     def create_resource(self):
         return GraphvizNeighboursResource(self.manager, format='dot')
 
@@ -91,3 +97,41 @@ class GraphvizNeigboursTest(_GraphvizBase):
         self.assertIsNotNone(request._finishedDeferreds)
         self.resource._err_tx_resolve('Error', request)
         self.assertIsNone(request._finishedDeferreds)
+
+
+class SyncV1GraphvizFullTest(BaseGraphvizTest, _GraphvizFullTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2GraphvizFullTest(BaseGraphvizTest, _GraphvizFullTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeGraphvizFullTest(SyncV2GraphvizFullTest):
+    _enable_sync_v1 = True
+
+
+class SyncV1GraphvizNeigboursTest(BaseGraphvizTest, _GraphvizNeigboursTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2GraphvizNeigboursTest(BaseGraphvizTest, _GraphvizNeigboursTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeGraphvizNeigboursTest(SyncV2GraphvizNeigboursTest):
+    _enable_sync_v1 = True

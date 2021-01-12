@@ -28,14 +28,14 @@ class TransactionOldRocksDBStorage(BaseTransactionStorage):
     It uses Protobuf serialization internally.
     """
 
-    def __init__(self, path='./', with_index=True):
+    def __init__(self, path: str = './', with_index: bool = True, with_all_index: bool = False):
         import rocksdb
         tx_dir = os.path.join(path, 'tx.db')
         self._db = rocksdb.DB(tx_dir, rocksdb.Options(create_if_missing=True))
 
         attributes_dir = os.path.join(path, 'attributes.db')
         self.attributes_db = rocksdb.DB(attributes_dir, rocksdb.Options(create_if_missing=True))
-        super().__init__(with_index=with_index)
+        super().__init__(with_index=with_index, with_all_index=with_all_index)
 
     def _load_from_bytes(self, data: bytes) -> 'BaseTransaction':
         from hathor import protos

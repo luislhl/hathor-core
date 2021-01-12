@@ -46,7 +46,8 @@ class Simulator:
     def stop(self):
         self.remove_patches()
 
-    def create_peer(self, network: Optional[str] = None) -> HathorManager:
+    def create_peer(self, network: Optional[str] = None,
+                    enable_sync_v1: bool = True, enable_sync_v2: bool = True) -> HathorManager:
         if network is None:
             network = self.network
 
@@ -60,6 +61,8 @@ class Simulator:
             peer_id=peer_id,
             network=network,
             wallet=wallet,
+            enable_sync_v1=enable_sync_v1,
+            enable_sync_v2=enable_sync_v2,
         )
 
         manager.reactor = self.clock

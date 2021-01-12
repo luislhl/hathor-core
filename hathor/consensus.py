@@ -253,7 +253,7 @@ class BlockConsensusAlgorithm:
                     assert best_block.hash is not None
                     best_meta = best_block.get_metadata()
                     self.log.debug('index previous best block', height=best_meta.height, block=best_block.hash_hex)
-                    storage.add_new_to_block_height_index(best_meta.height, best_block.hash)
+                    storage.add_reorg_to_block_height_index(best_meta.height, best_block.hash)
 
         # Uncomment the following lines to check that the cache update is working properly.
         # You shouldn't run this test in production because it dampens performance.

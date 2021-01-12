@@ -10,7 +10,9 @@ from tests.utils import add_blocks_unlock_reward, add_new_blocks, create_tokens
 settings = HathorSettings()
 
 
-class SearchAddressTest(_BaseResourceTest._ResourceTest):
+class BaseSearchAddressTest(_BaseResourceTest._ResourceTest):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
 
@@ -112,3 +114,22 @@ class SearchAddressTest(_BaseResourceTest._ResourceTest):
         self.assertEqual(0, data['tokens_data'][settings.HATHOR_TOKEN_UID.hex()]['spent'])
         self.assertEqual(100, data['tokens_data'][self.token_uid.hex()]['received'])
         self.assertEqual(0, data['tokens_data'][self.token_uid.hex()]['spent'])
+
+
+class SyncV1SearchAddressTest(BaseSearchAddressTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2SearchAddressTest(BaseSearchAddressTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeSearchAddressTest(SyncV2SearchAddressTest):
+    _enable_sync_v1 = True

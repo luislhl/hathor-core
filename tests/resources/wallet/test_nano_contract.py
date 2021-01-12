@@ -14,7 +14,9 @@ from tests.resources.base_resource import StubSite, TestDummyRequest, _BaseResou
 from tests.utils import add_blocks_unlock_reward, add_new_blocks
 
 
-class NanoContractsTest(_BaseResourceTest._ResourceTest):
+class BaseNanoContractsTest(_BaseResourceTest._ResourceTest):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
         self.manager.wallet.unlock(b"MYPASS")
@@ -215,3 +217,22 @@ class NanoContractsTest(_BaseResourceTest._ResourceTest):
         response_match_put = match_resource.render_PUT(request_match_put)
         data_response_match_put = json.loads(response_match_put.decode('utf-8'))
         self.assertFalse(data_response_match_put['success'])
+
+
+class SyncV1NanoContractsTest(BaseNanoContractsTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2NanoContractsTest(BaseNanoContractsTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeNanoContractsTest(SyncV2NanoContractsTest):
+    _enable_sync_v1 = True

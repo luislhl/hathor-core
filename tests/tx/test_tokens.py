@@ -13,7 +13,9 @@ from tests.utils import add_blocks_unlock_reward, create_tokens, get_genesis_key
 settings = HathorSettings()
 
 
-class TokenTest(unittest.TestCase):
+class BaseTokenTest(unittest.TestCase):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
         self.manager = self.create_peer('testnet', unlock_wallet=True, wallet_index=True)
@@ -581,5 +583,20 @@ class TokenTest(unittest.TestCase):
             block.verify()
 
 
-if __name__ == '__main__':
-    unittest.main()
+class SyncV1TokenTest(BaseTokenTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2TokenTest(BaseTokenTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeTokenTest(SyncV2TokenTest):
+    _enable_sync_v1 = True

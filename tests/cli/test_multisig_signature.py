@@ -14,7 +14,9 @@ from tests import unittest
 from tests.utils import add_blocks_unlock_reward, add_new_blocks, add_new_transactions
 
 
-class SignatureTest(unittest.TestCase):
+class BaseSignatureTest(unittest.TestCase):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
 
@@ -58,3 +60,22 @@ class SignatureTest(unittest.TestCase):
         data_to_sign = tx.get_sighash_all()
         hashed_data = hashlib.sha256(data_to_sign).digest()
         self.assertIsNone(public_key.verify(signature, hashed_data, ec.ECDSA(hashes.SHA256())))
+
+
+class SyncV1SignatureTest(BaseSignatureTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2SignatureTest(BaseSignatureTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeSignatureTest(SyncV2SignatureTest):
+    _enable_sync_v1 = True

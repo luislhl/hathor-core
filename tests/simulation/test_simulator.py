@@ -9,7 +9,9 @@ from tests import unittest
 
 
 @pytest.mark.skipif(sys.platform == 'win32', reason='set_seed fails on Windows')
-class HathorSimulatorTestCase(unittest.TestCase):
+class BaseHathorSimulatorTestCase(unittest.TestCase):
+    __test__ = False
+
     seed_config: Optional[int] = None
 
     def setUp(self):
@@ -32,8 +34,20 @@ class HathorSimulatorTestCase(unittest.TestCase):
         self.simulator.stop()
         super().tearDown()
 
+    def create_peer(self, enable_sync_v1=None, enable_sync_v2=None):
+        if enable_sync_v1 is None:
+            assert hasattr(self, '_enable_sync_v1'), ('`_enable_sync_v1` has no default by design, either set one on '
+                                                      'the test class or pass `enable_sync_v1` by argument')
+            enable_sync_v1 = self._enable_sync_v1
+        if enable_sync_v2 is None:
+            assert hasattr(self, '_enable_sync_v2'), ('`_enable_sync_v2` has no default by design, either set one on '
+                                                      'the test class or pass `enable_sync_v2` by argument')
+            enable_sync_v2 = self._enable_sync_v2
+        assert enable_sync_v1 or enable_sync_v2, 'enable at least one sync version'
+        return self.simulator.create_peer(enable_sync_v1=enable_sync_v1, enable_sync_v2=enable_sync_v2)
+
     def test_one_node(self):
-        manager1 = self.simulator.create_peer()
+        manager1 = self.create_peer()
 
         miner1 = MinerSimulator(manager1, hashpower=100e6)
         miner1.start()
@@ -44,8 +58,8 @@ class HathorSimulatorTestCase(unittest.TestCase):
         self.simulator.run(60 * 60)
 
     def test_two_nodes(self):
-        manager1 = self.simulator.create_peer()
-        manager2 = self.simulator.create_peer()
+        manager1 = self.create_peer()
+        manager2 = self.create_peer()
 
         miner1 = MinerSimulator(manager1, hashpower=10e6)
         miner1.start()
@@ -82,7 +96,7 @@ class HathorSimulatorTestCase(unittest.TestCase):
         miners = []
 
         for hashpower in [10e6, 5e6, 1e6, 1e6, 1e6]:
-            manager = self.simulator.create_peer()
+            manager = self.create_peer()
             for node in nodes:
                 conn = FakeConnection(manager, node, latency=0.085)
                 self.simulator.add_connection(conn)
@@ -108,7 +122,7 @@ class HathorSimulatorTestCase(unittest.TestCase):
         miners = []
         tx_generators = []
 
-        manager = self.simulator.create_peer()
+        manager = self.create_peer()
         nodes.append(manager)
         miner = MinerSimulator(manager, hashpower=10e6)
         miner.start()
@@ -116,7 +130,7 @@ class HathorSimulatorTestCase(unittest.TestCase):
         self.simulator.run(600)
 
         for hashpower in [10e6, 8e6, 5e6]:
-            manager = self.simulator.create_peer()
+            manager = self.create_peer()
             for node in nodes:
                 conn = FakeConnection(manager, node, latency=0.085)
                 self.simulator.add_connection(conn)
@@ -133,7 +147,8 @@ class HathorSimulatorTestCase(unittest.TestCase):
 
         self.simulator.run(600)
 
-        late_manager = self.simulator.create_peer()
+        self.log.debug('adding late node')
+        late_manager = self.create_peer()
         for node in nodes:
             conn = FakeConnection(late_manager, node, latency=0.300)
             self.simulator.add_connection(conn)
@@ -145,8 +160,41 @@ class HathorSimulatorTestCase(unittest.TestCase):
         for miner in miners:
             miner.stop()
 
-        self.simulator.run(600)
+        # XXX: maybe there should be a simulator.run_until_synced(max_steps), instead of blindly stepping >600 times
+        self.simulator.run(2000)
 
         for idx, node in enumerate(nodes):
-            print('Checking node {}...'.format(idx))
-            self.assertTipsEqual(late_manager, node)
+            self.log.debug(f'checking node {idx}')
+            self.assertConsensusValid(node)
+            self.assertConsensusEqual(node, late_manager)
+
+
+class SyncV1HathorSimulatorTestCase(BaseHathorSimulatorTestCase):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2HathorSimulatorTestCase(BaseHathorSimulatorTestCase):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+    # XXX: override methods to mark as flaky only on sync-v2
+    # XXX: these may or may not be related to https://github.com/HathorNetwork/sec-hathor-core/issues/70
+
+    # XXX: retry the test once if it fails, see: https://github.com/box/flaky
+    @pytest.mark.flaky
+    def test_new_syncing_peer(self):
+        super().test_new_syncing_peer()
+
+    @pytest.mark.flaky
+    def test_two_nodes(self):
+        super().test_two_nodes()
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeHathorSimulatorTestCase(SyncV2HathorSimulatorTestCase):
+    _enable_sync_v1 = True

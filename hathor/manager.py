@@ -42,6 +42,7 @@ from hathor.transaction import BaseTransaction, Block, MergeMinedBlock, Transact
 from hathor.transaction.exceptions import TxValidationError
 from hathor.transaction.storage import TransactionStorage
 from hathor.transaction.storage.exceptions import TransactionDoesNotExist
+from hathor.util import not_none
 from hathor.wallet import BaseWallet
 
 settings = HathorSettings()
@@ -67,6 +68,7 @@ class HathorManager:
                  wallet: Optional[BaseWallet] = None, tx_storage: Optional[TransactionStorage] = None,
                  peer_storage: Optional[Any] = None, default_port: int = 40403, wallet_index: bool = False,
                  stratum_port: Optional[int] = None, ssl: bool = True,
+                 enable_sync_v1: bool = True, enable_sync_v2: bool = False,
                  capabilities: Optional[List[str]] = None, checkpoints: Optional[List[Checkpoint]] = None) -> None:
         """
         :param reactor: Twisted reactor which handles the mainloop and the events.
@@ -99,6 +101,9 @@ class HathorManager:
         from hathor.p2p.factory import HathorClientFactory, HathorServerFactory
         from hathor.p2p.manager import ConnectionsManager
         from hathor.transaction.storage.memory_storage import TransactionMemoryStorage
+
+        if not (enable_sync_v1 or enable_sync_v2):
+            raise ValueError('At least one sync version is required')
 
         self.log = logger.new()
 
@@ -133,7 +138,7 @@ class HathorManager:
 
         # XXX Should we use a singleton or a new PeerStorage? [msbrogli 2018-08-29]
         self.pubsub = pubsub or PubSubManager(self.reactor)
-        self.tx_storage = tx_storage or TransactionMemoryStorage()
+        self.tx_storage = tx_storage or TransactionMemoryStorage(with_all_index=enable_sync_v1)
         self.tx_storage.pubsub = self.pubsub
         if wallet_index and self.tx_storage.with_index:
             self.tx_storage.wallet_index = WalletIndex(self.pubsub)
@@ -151,10 +156,12 @@ class HathorManager:
         self.peer_discoveries: List[PeerDiscovery] = []
 
         self.ssl = ssl
-        self.server_factory = HathorServerFactory(self.network, self.my_peer, node=self, use_ssl=ssl)
-        self.client_factory = HathorClientFactory(self.network, self.my_peer, node=self, use_ssl=ssl)
+        self.server_factory = HathorServerFactory(self.network, self.my_peer, node=self, use_ssl=ssl,
+                                                  enable_sync_v1=enable_sync_v1, enable_sync_v2=enable_sync_v2)
+        self.client_factory = HathorClientFactory(self.network, self.my_peer, node=self, use_ssl=ssl,
+                                                  enable_sync_v1=enable_sync_v1, enable_sync_v2=enable_sync_v2)
         self.connections = ConnectionsManager(self.reactor, self.my_peer, self.server_factory, self.client_factory,
-                                              self.pubsub, self, ssl)
+                                              self.pubsub, self, ssl, whitelist_only=False)
 
         self.wallet = wallet
         if self.wallet:
@@ -188,8 +195,10 @@ class HathorManager:
         # List of capabilities of the peer
         if capabilities is not None:
             self.capabilities = capabilities
-        else:
+        elif enable_sync_v2:
             self.capabilities = [settings.CAPABILITY_WHITELIST, settings.CAPABILITY_SYNC_V2]
+        else:
+            self.capabilities = [settings.CAPABILITY_WHITELIST]
 
     def start(self) -> None:
         """ A factory must be started only once. And it is usually automatically started.
@@ -493,16 +502,8 @@ class HathorManager:
         :rtype: List[bytes(hash)]
         """
         timestamp = timestamp or self.reactor.seconds()
-        ret = list(self.tx_storage.get_tx_tips(timestamp - 1))
-        random.shuffle(ret)
-        ret = ret[:2]
-        if len(ret) == 1:
-            # If there is only one tip, let's randomly choose one of its parents.
-            parents = list(self.tx_storage.get_tx_tips(ret[0].begin - 1))
-            ret.append(random.choice(parents))
-        assert len(ret) == 2, 'timestamp={} tips={}'.format(
-            timestamp, [x.hex() for x in self.tx_storage.get_tx_tips(timestamp - 1)])
-        return [x.data for x in ret]
+        parent_txs = self.generate_parent_txs(timestamp)
+        return list(parent_txs.get_random_parents())
 
     def generate_parent_txs(self, timestamp: Optional[float]) -> 'ParentTxs':
         """Select which transactions will be confirmed by a new block.
@@ -510,19 +511,33 @@ class HathorManager:
         This method tries to return a stable result, such that for a given timestamp and storage state it will always
         return the same.
         """
-        if timestamp is None:
-            timestamp = self.reactor.seconds()
-        can_include_intervals = sorted(self.tx_storage.get_tx_tips(timestamp - 1))
-        assert can_include_intervals, 'tips cannot be empty'
-        max_timestamp = max(int(i.begin) for i in can_include_intervals)
-        must_include: List[bytes] = []
-        assert len(can_include_intervals) > 0, f'invalid timestamp "{timestamp}", no tips found"'
-        if len(can_include_intervals) < 2:
-            # If there is only one tip, let's randomly choose one of its parents.
-            must_include_interval = can_include_intervals[0]
-            must_include = [must_include_interval.data]
-            can_include_intervals = sorted(self.tx_storage.get_tx_tips(must_include_interval.begin - 1))
-        can_include = [i.data for i in can_include_intervals]
+        # get all that are before "timestamp"
+        # XXX: maybe add some tolerance?
+        tx_tips = list(self.tx_storage.iter_tx_tips(timestamp))
+        must_include: List[bytes]
+        can_include: List[bytes]
+        max_timestamp: int
+        if not tx_tips:
+            # there are no txs on mempool, repeat the same tx parents as the best block
+            must_include = []
+            # can_include = self.tx_storage.get_best_block().parents[1:]
+            best_block = self.tx_storage.get_best_block()
+            if best_block.is_genesis:
+                can_include = [settings.GENESIS_TX1_HASH, settings.GENESIS_TX2_HASH]
+            else:
+                can_include = self.tx_storage.get_best_block().parents[1:]
+            max_timestamp = max(tx.timestamp for tx in map(self.tx_storage.get_transaction, can_include) if tx)
+        elif len(tx_tips) < 2:
+            # there is only one tx, it must be included, and either of its parents can be included
+            only_tx = tx_tips[0]
+            must_include = [not_none(tx.hash) for tx in tx_tips]
+            can_include = only_tx.parents[:]
+            max_timestamp = only_tx.timestamp
+        else:
+            # otherwise we can include any tx on the mempool
+            must_include = []
+            can_include = [not_none(tx.hash) for tx in tx_tips]
+            max_timestamp = max(tx.timestamp for tx in tx_tips)
         return ParentTxs(max_timestamp, can_include, must_include)
 
     def allow_mining_without_peers(self) -> None:
@@ -648,6 +663,17 @@ class HathorManager:
             height=height,
             score=sum_weights(parent_block_metadata.score, weight),
         )
+
+    def get_current_score(self, parent_block: Optional[Block] = None, timestamp: Optional[int] = None) -> float:
+        if timestamp is None:
+            timestamp = int(max(self.tx_storage.latest_timestamp, self.reactor.seconds()))
+        if parent_block is None:
+            block = self.tx_storage.get_transaction(next(iter(self.tx_storage.get_best_block_tips())))
+            assert isinstance(block, Block)
+            parent_block = block
+        parent_block_metadata = parent_block.get_metadata()
+        weight = daa.calculate_next_weight(parent_block, timestamp)
+        return sum_weights(parent_block_metadata.score, weight)
 
     def generate_mining_block(self, timestamp: Optional[int] = None,
                               parent_block_hash: Optional[bytes] = None,

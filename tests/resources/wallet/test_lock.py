@@ -4,7 +4,9 @@ from hathor.wallet.resources import LockWalletResource, StateWalletResource, Unl
 from tests.resources.base_resource import StubSite, _BaseResourceTest
 
 
-class LockTest(_BaseResourceTest._ResourceTest):
+class BaseLockTest(_BaseResourceTest._ResourceTest):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
         self.web = StubSite(LockWalletResource(self.manager))
@@ -41,3 +43,22 @@ class LockTest(_BaseResourceTest._ResourceTest):
         response_locked = yield self.web_state.get('wallet/state')
         data_locked = response_locked.json_value()
         self.assertTrue(data_locked['is_locked'])
+
+
+class SyncV1LockTest(BaseLockTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2LockTest(BaseLockTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeLockTest(SyncV2LockTest):
+    _enable_sync_v1 = True

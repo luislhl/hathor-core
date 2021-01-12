@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 
 class TransactionBinaryStorage(BaseTransactionStorage):
-    def __init__(self, path='./', with_index=True):
+    def __init__(self, path='./', with_index=True, with_all_index=False):
         self.tx_path = os.path.join(path, 'tx')
         os.makedirs(self.tx_path, exist_ok=True)
 
@@ -41,7 +41,7 @@ class TransactionBinaryStorage(BaseTransactionStorage):
         self.attributes_path = os.path.join(path, 'attributes')
         os.makedirs(self.attributes_path, exist_ok=True)
 
-        super().__init__(with_index=with_index)
+        super().__init__(with_index=with_index, with_all_index=with_all_index)
 
     def remove_transaction(self, tx):
         super().remove_transaction(tx)

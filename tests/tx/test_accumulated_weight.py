@@ -4,7 +4,9 @@ from tests import unittest
 from tests.utils import add_blocks_unlock_reward, add_new_blocks, add_new_transactions
 
 
-class AccumulatedWeightTestCase(unittest.TestCase):
+class BaseAccumulatedWeightTestCase(unittest.TestCase):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
         self.tx_storage = TransactionMemoryStorage()
@@ -42,3 +44,22 @@ class AccumulatedWeightTestCase(unittest.TestCase):
 
         meta = tx0.update_accumulated_weight()
         self.assertAlmostEqual(meta.accumulated_weight, expected)
+
+
+class SyncV1AccumulatedWeightTestCase(BaseAccumulatedWeightTestCase):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2AccumulatedWeightTestCase(BaseAccumulatedWeightTestCase):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeAccumulatedWeightTestCase(SyncV2AccumulatedWeightTestCase):
+    _enable_sync_v1 = True

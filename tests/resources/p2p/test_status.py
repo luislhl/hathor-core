@@ -7,7 +7,9 @@ from hathor.simulator import FakeConnection
 from tests.resources.base_resource import StubSite, _BaseResourceTest
 
 
-class StatusTest(_BaseResourceTest._ResourceTest):
+class BaseStatusTest(_BaseResourceTest._ResourceTest):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
         self.web = StubSite(StatusResource(self.manager))
@@ -78,3 +80,22 @@ class StatusTest(_BaseResourceTest._ResourceTest):
         self.assertEqual(len(connecting), 1)
         self.assertEqual(connecting[0]['address'], address)
         self.assertIsNotNone(connecting[0]['deferred'])
+
+
+class SyncV1StatusTest(BaseStatusTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2StatusTest(BaseStatusTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeStatusTest(SyncV2StatusTest):
+    _enable_sync_v1 = True

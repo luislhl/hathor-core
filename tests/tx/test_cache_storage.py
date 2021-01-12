@@ -7,7 +7,9 @@ from tests.utils import add_new_blocks, add_new_transactions
 CACHE_SIZE = 5
 
 
-class BasicTransaction(unittest.TestCase):
+class BaseCacheStorageTest(unittest.TestCase):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
 
@@ -149,5 +151,20 @@ class BasicTransaction(unittest.TestCase):
         self.assertEqual(total, 5)
 
 
-if __name__ == '__main__':
-    unittest.main()
+class SyncV1CacheStorageTest(BaseCacheStorageTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2CacheStorageTest(BaseCacheStorageTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeCacheStorageTest(SyncV2CacheStorageTest):
+    _enable_sync_v1 = True

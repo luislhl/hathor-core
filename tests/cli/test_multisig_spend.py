@@ -16,7 +16,9 @@ from tests.utils import add_blocks_unlock_reward, add_new_blocks
 settings = HathorSettings()
 
 
-class MultiSigSpendTest(unittest.TestCase):
+class BaseMultiSigSpendTest(unittest.TestCase):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
 
@@ -118,3 +120,22 @@ class MultiSigSpendTest(unittest.TestCase):
 
         tx = Transaction.create_from_struct(bytes.fromhex(tx_raw))
         self.assertTrue(self.manager.propagate_tx(tx, False))
+
+
+class SyncV1MultiSigSpendTest(BaseMultiSigSpendTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2MultiSigSpendTest(BaseMultiSigSpendTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeMultiSigSpendTest(SyncV2MultiSigSpendTest):
+    _enable_sync_v1 = True

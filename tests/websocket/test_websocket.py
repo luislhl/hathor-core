@@ -14,7 +14,9 @@ from tests.resources.base_resource import StubSite, _BaseResourceTest
 settings = HathorSettings()
 
 
-class TestWebsocket(_BaseResourceTest._ResourceTest):
+class BaseWebsocketTest(_BaseResourceTest._ResourceTest):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
 
@@ -221,3 +223,22 @@ class TestWebsocket(_BaseResourceTest._ResourceTest):
         data = response.json_value()
         self.assertEqual(data['connections'], 1)
         self.assertEqual(data['subscribed_addresses'], 2)
+
+
+class SyncV1WebsocketTest(BaseWebsocketTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2WebsocketTest(BaseWebsocketTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeWebsocketTest(SyncV2WebsocketTest):
+    _enable_sync_v1 = True

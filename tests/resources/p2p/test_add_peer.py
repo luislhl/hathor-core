@@ -5,7 +5,9 @@ from hathor.p2p.resources import AddPeersResource
 from tests.resources.base_resource import StubSite, _BaseResourceTest
 
 
-class AddPeerTest(_BaseResourceTest._ResourceTest):
+class BaseAddPeerTest(_BaseResourceTest._ResourceTest):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
         self.web = StubSite(AddPeersResource(self.manager))
@@ -36,3 +38,22 @@ class AddPeerTest(_BaseResourceTest._ResourceTest):
         response = yield self.web.post('p2p/peers', {'a': 'tcp://localhost:8006'})
         data = response.json_value()
         self.assertFalse(data['success'])
+
+
+class SyncV1AddPeerTest(BaseAddPeerTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2AddPeerTest(BaseAddPeerTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeAddPeerTest(SyncV2AddPeerTest):
+    _enable_sync_v1 = True

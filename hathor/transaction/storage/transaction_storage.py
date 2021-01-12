@@ -59,7 +59,8 @@ class TransactionStorage(ABC):
     """Legacy sync interface, please copy @deprecated decorator when implementing methods."""
 
     pubsub: Optional[PubSubManager]
-    with_index: bool  # noqa: E701
+    with_index: bool
+    with_all_index: bool
     wallet_index: Optional[WalletIndex]
     tokens_index: Optional[TokensIndex]
     block_index: Optional[IndexesManager]
@@ -521,13 +522,12 @@ class TransactionStorage(ABC):
         :param tx: Trasaction to be removed
         """
         if self.with_index:
-            assert self.all_index is not None
-
             self.del_from_indexes(tx, relax_assert=True)
             # TODO Move it to self.del_from_indexes. We cannot simply do it because
             #      this method is used by the consensus algorithm which does not
             #      expect to have it removed from self.all_index.
-            self.all_index.del_tx(tx, relax_assert=True)
+            if self.all_index is not None:
+                self.all_index.del_tx(tx, relax_assert=True)
 
             if self.wallet_index:
                 self.wallet_index.remove_tx(tx)
@@ -630,24 +630,29 @@ class TransactionStorage(ABC):
         When more than one block is returned, it means that there are multiple best chains and
         you can choose any of them.
         """
-        if timestamp is None and not skip_cache and self._best_block_tips is not None:
-            return self._best_block_tips
+        # if timestamp is None and not skip_cache and self._best_block_tips is not None:
+        #     return self._best_block_tips
 
-        best_score = 0.0
-        best_tip_blocks: List[bytes] = []
+        # best_score = 0.0
+        # best_tip_blocks: List[bytes] = []
 
-        for block_hash in (x.data for x in self.get_block_tips(timestamp)):
-            meta = self.get_metadata(block_hash)
-            assert meta is not None
-            if meta.voided_by and meta.voided_by != set([block_hash]):
-                # If anyone but the block itself is voiding this block, then it must be skipped.
-                continue
-            if abs(meta.score - best_score) < 1e-10:
-                best_tip_blocks.append(block_hash)
-            elif meta.score > best_score:
-                best_score = meta.score
-                best_tip_blocks = [block_hash]
-        return best_tip_blocks
+        # for block_hash in (x.data for x in self.get_block_tips(timestamp)):
+        #     meta = self.get_metadata(block_hash)
+        #     assert meta is not None
+        #     if meta.voided_by and meta.voided_by != set([block_hash]):
+        #         # If anyone but the block itself is voiding this block, then it must be skipped.
+        #         continue
+        #     if abs(meta.score - best_score) < 1e-10:
+        #         best_tip_blocks.append(block_hash)
+        #     elif meta.score > best_score:
+        #         best_score = meta.score
+        #         best_tip_blocks = [block_hash]
+
+        blocks = list(self._parent_blocks_index)
+        if timestamp is not None:
+            # TODO: implement timestamp filtering
+            pass
+        return blocks
 
     def get_weight_best_block(self) -> float:
         heads = [self.get_transaction(h) for h in self.get_best_block_tips()]
@@ -916,14 +921,18 @@ class TransactionStorage(ABC):
 
 
 class BaseTransactionStorage(TransactionStorage):
-    def __init__(self, with_index: bool = True, pubsub: Optional[Any] = None) -> None:
+    def __init__(self, with_index: bool = True, with_all_index: bool = False, pubsub: Optional[Any] = None) -> None:
         super().__init__()
 
         # Pubsub is used to publish tx voided and winner but it's optional
         self.pubsub = pubsub
 
+        if with_all_index:
+            assert with_index, 'cannot have `with_all_index=True` and `with_index=False`'
+
         # Initialize index if needed.
         self.with_index = with_index
+        self.with_all_index = with_all_index
         if with_index:
             self._reset_cache()
 
@@ -950,7 +959,7 @@ class BaseTransactionStorage(TransactionStorage):
 
         self.block_index = IndexesManager()
         self.tx_index = IndexesManager()
-        self.all_index = IndexesManager()
+        self.all_index = IndexesManager() if self.with_all_index else None
         self.wallet_index = None
         self.tokens_index = None
 
@@ -979,6 +988,7 @@ class BaseTransactionStorage(TransactionStorage):
         if not self.with_index:
             raise NotImplementedError
         assert self.block_index is not None
+        assert self.block_index.tips_index is not None
         if timestamp is None:
             timestamp = self.latest_timestamp
         return self.block_index.tips_index[timestamp]
@@ -987,6 +997,7 @@ class BaseTransactionStorage(TransactionStorage):
         if not self.with_index:
             raise NotImplementedError
         assert self.tx_index is not None
+        assert self.tx_index.tips_index is not None
         if timestamp is None:
             timestamp = self.latest_timestamp
         tips = self.tx_index.tips_index[timestamp]
@@ -1004,6 +1015,7 @@ class BaseTransactionStorage(TransactionStorage):
         if not self.with_index:
             raise NotImplementedError
         assert self.all_index is not None
+        assert self.all_index.tips_index is not None
         if timestamp is None:
             timestamp = self.latest_timestamp
 
@@ -1134,7 +1146,6 @@ class BaseTransactionStorage(TransactionStorage):
     def add_to_indexes(self, tx: BaseTransaction) -> None:
         if not self.with_index:
             raise NotImplementedError
-        assert self.all_index is not None
         assert self.block_index is not None
         assert self.tx_index is not None
         self._latest_timestamp = max(self.latest_timestamp, tx.timestamp)
@@ -1144,7 +1155,8 @@ class BaseTransactionStorage(TransactionStorage):
             self._first_timestamp = min(self.first_timestamp, tx.timestamp)
         self._first_timestamp = min(self.first_timestamp, tx.timestamp)
         self._all_tips_cache = None
-        self.all_index.add_tx(tx)
+        if self.all_index:
+            self.all_index.add_tx(tx)
         if self.wallet_index:
             self.wallet_index.add_tx(tx)
         if self.tokens_index:

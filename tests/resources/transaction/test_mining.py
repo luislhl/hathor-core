@@ -4,7 +4,9 @@ from hathor.transaction.resources import mining
 from tests.resources.base_resource import StubSite, _BaseResourceTest
 
 
-class MiningApiTest(_BaseResourceTest._ResourceTest):
+class BaseMiningApiTest(_BaseResourceTest._ResourceTest):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
         self.get_block_template = StubSite(mining.GetBlockTemplateResource(self.manager))
@@ -88,3 +90,22 @@ class MiningApiTest(_BaseResourceTest._ResourceTest):
         block = create_tx_from_dict(data)
         block.resolve(False)
         self.assertTrue(self.manager.propagate_tx(block))
+
+
+class SyncV1MiningApiTest(BaseMiningApiTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2MiningApiTest(BaseMiningApiTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeMiningApiTest(SyncV2MiningApiTest):
+    _enable_sync_v1 = True

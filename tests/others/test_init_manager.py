@@ -33,7 +33,9 @@ class ModifiedTransactionMemoryStorage(TransactionMemoryStorage):
                 yield tx
 
 
-class ManagerInitializationTestCase(unittest.TestCase):
+class BaseManagerInitializationTestCase(unittest.TestCase):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
         self.tx_storage = ModifiedTransactionMemoryStorage()
@@ -127,3 +129,22 @@ class ManagerInitializationTestCase(unittest.TestCase):
         all_tips = manager.generate_parent_txs(None).get_all_tips()
         iter_tips_meta = map(manager.tx_storage.get_metadata, all_tips)
         self.assertFalse(any(tx_meta.voided_by for tx_meta in iter_tips_meta))
+
+
+class SyncV1ManagerInitializationTestCase(BaseManagerInitializationTestCase):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2ManagerInitializationTestCase(BaseManagerInitializationTestCase):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeManagerInitializationTestCase(SyncV2ManagerInitializationTestCase):
+    _enable_sync_v1 = True

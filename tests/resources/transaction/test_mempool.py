@@ -8,7 +8,9 @@ from tests.utils import add_blocks_unlock_reward, add_new_blocks, add_new_transa
 settings = HathorSettings()
 
 
-class MempoolTest(_BaseResourceTest._ResourceTest):
+class BaseMempoolTest(_BaseResourceTest._ResourceTest):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
         self.web = StubSite(MempoolResource(self.manager))
@@ -59,3 +61,22 @@ class MempoolTest(_BaseResourceTest._ResourceTest):
         self.assertTrue(data5['success'])
         # default limit is 100
         self.assertEqual(len(data5['transactions']), settings.MEMPOOL_API_TX_LIMIT)
+
+
+class SyncV1MempoolTest(BaseMempoolTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2MempoolTest(BaseMempoolTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeMempoolTest(SyncV2MempoolTest):
+    _enable_sync_v1 = True

@@ -134,6 +134,7 @@ class _BaseTransactionStorageTest:
                 self.assertEqual(tx, tx2)
                 self.assertTrue(self.tx_storage.transaction_exists(tx.hash))
 
+        @pytest.mark.skip(reason='legacy')
         def test_get_empty_merklee_tree(self):
             # We use `first_timestamp - 1` to ensure that the merkle tree will be empty.
             self.tx_storage.get_merkle_tree(self.tx_storage.first_timestamp - 1)
@@ -146,11 +147,11 @@ class _BaseTransactionStorageTest:
             self.assertEqual(2, self.tx_storage.get_tx_count())
             self.assertEqual(3, self.tx_storage.get_count_tx_blocks())
 
-            block_parents_hash = [x.data for x in self.tx_storage.get_block_tips()]
+            block_parents_hash = self.tx_storage.get_best_block_tips()
             self.assertEqual(1, len(block_parents_hash))
             self.assertEqual(block_parents_hash, [self.genesis_blocks[0].hash])
 
-            tx_parents_hash = [x.data for x in self.tx_storage.get_tx_tips()]
+            tx_parents_hash = self.manager.get_new_tx_parents()
             self.assertEqual(2, len(tx_parents_hash))
             self.assertEqual(set(tx_parents_hash), {self.genesis_txs[0].hash, self.genesis_txs[1].hash})
 
@@ -168,7 +169,7 @@ class _BaseTransactionStorageTest:
             self.assertEqual(obj.is_block, loaded_obj1.is_block)
 
             # Testing add and remove from cache
-            if self.tx_storage.with_index:
+            if self.tx_storage.with_all_index:
                 if obj.is_block:
                     self.assertTrue(obj.hash in self.tx_storage.block_index.tips_index.tx_last_interval)
                 else:
@@ -176,14 +177,14 @@ class _BaseTransactionStorageTest:
 
             self.tx_storage.del_from_indexes(obj)
 
-            if self.tx_storage.with_index:
+            if self.tx_storage.with_all_index:
                 if obj.is_block:
                     self.assertFalse(obj.hash in self.tx_storage.block_index.tips_index.tx_last_interval)
                 else:
                     self.assertFalse(obj.hash in self.tx_storage.tx_index.tips_index.tx_last_interval)
 
             self.tx_storage.add_to_indexes(obj)
-            if self.tx_storage.with_index:
+            if self.tx_storage.with_all_index:
                 if obj.is_block:
                     self.assertTrue(obj.hash in self.tx_storage.block_index.tips_index.tx_last_interval)
                 else:
@@ -214,7 +215,7 @@ class _BaseTransactionStorageTest:
             with self.assertRaises(TransactionDoesNotExist):
                 self.tx_storage.get_transaction(tx.hash)
 
-            if hasattr(self.tx_storage, 'all_index'):
+            if hasattr(self.tx_storage, 'all_index') and self.tx_storage.all_index is not None:
                 self._validate_not_in_index(tx, self.tx_storage.all_index)
 
             if tx.is_block:
@@ -297,26 +298,31 @@ class _BaseTransactionStorageTest:
             self.assertEqual(total, 4)
 
         def test_storage_new_blocks(self):
-            tip_blocks = [x.data for x in self.tx_storage.get_block_tips()]
-            self.assertEqual(tip_blocks, [self.genesis_blocks[0].hash])
+            self.assertEqual(self.tx_storage.get_best_block_tips(), [self.genesis_blocks[0].hash])
 
             block1 = self._add_new_block()
-            tip_blocks = [x.data for x in self.tx_storage.get_block_tips()]
-            self.assertEqual(tip_blocks, [block1.hash])
+            self.assertEqual(self.tx_storage.get_best_block_tips(), [block1.hash])
 
             block2 = self._add_new_block()
-            tip_blocks = [x.data for x in self.tx_storage.get_block_tips()]
-            self.assertEqual(tip_blocks, [block2.hash])
+            self.assertEqual(self.tx_storage.get_best_block_tips(), [block2.hash])
 
-            # Block3 has the same parents as block2.
+            meta2 = block2.get_metadata()
+            self.assertIsNone(meta2.voided_by)
+
+            # Block3 has the same parents as block2, then block3 and block2 will be voided
+            # the tips will have both of them
             block3 = self._add_new_block(parents=block2.parents)
-            tip_blocks = [x.data for x in self.tx_storage.get_block_tips()]
-            self.assertEqual(set(tip_blocks), {block2.hash, block3.hash})
+            self.assertCountEqual(block3.parents, block2.parents)
+            self.assertCountEqual(self.tx_storage.get_best_block_tips(), [block2.hash, block3.hash])
+
+            meta2 = block2.get_metadata(force_reload=True)
+            meta3 = block3.get_metadata()
+            self.assertIsNotNone(meta2.voided_by)
+            self.assertIsNotNone(meta3.voided_by)
 
             # Re-generate caches to test topological sort.
             self.tx_storage._manually_initialize()
-            tip_blocks = [x.data for x in self.tx_storage.get_block_tips()]
-            self.assertEqual(set(tip_blocks), {block2.hash, block3.hash})
+            self.assertCountEqual(self.tx_storage.get_best_block_tips(), [block2.hash, block3.hash])
 
         def test_token_list(self):
             tx = self.tx
@@ -349,7 +355,7 @@ class _BaseTransactionStorageTest:
             _total += len(blocks)
             blocks = add_blocks_unlock_reward(self.manager)
             _total += len(blocks)
-            add_new_transactions(self.manager, 1, advance_clock=1)[0]
+            add_new_transactions(self.manager, 1, advance_clock=1)
 
             total = 0
             for tx in self.tx_storage._topological_sort():
@@ -497,7 +503,3 @@ class TransactionRocksDBStorageTest(_BaseTransactionStorageTest._TransactionStor
     def tearDown(self):
         shutil.rmtree(self.directory)
         super().tearDown()
-
-
-if __name__ == '__main__':
-    unittest.main()

@@ -21,7 +21,9 @@ BLOCK_REWARD = 300
 PASSWORD = b'passwd'
 
 
-class BasicWallet(unittest.TestCase):
+class BaseBasicWalletTest(unittest.TestCase):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
         self.directory = tempfile.mkdtemp()
@@ -263,3 +265,22 @@ class BasicWallet(unittest.TestCase):
         self.assertTrue(self.manager.on_new_tx(tx2, fails_silently=False))
         self.clock.advance(2)
         self.assertEqual(0, len(w.maybe_spent_txs[settings.HATHOR_TOKEN_UID]))
+
+
+class SyncV1BasicWalletTest(BaseBasicWalletTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2BasicWalletTest(BaseBasicWalletTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeBasicWalletTest(SyncV2BasicWalletTest):
+    _enable_sync_v1 = True

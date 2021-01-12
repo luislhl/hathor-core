@@ -149,6 +149,10 @@ class PeerIdTest(unittest.TestCase):
         self.assertEqual(p.retry_interval, 5)
         self.assertEqual(p.retry_timestamp, 0)
 
+
+class BasePeerIdTest(unittest.TestCase):
+    __test__ = False
+
     @inlineCallbacks
     def test_validate_entrypoint(self):
         manager = self.create_peer('testnet', unlock_wallet=False)
@@ -156,7 +160,9 @@ class PeerIdTest(unittest.TestCase):
         peer_id.entrypoints = ['tcp://127.0.0.1:40403']
 
         # we consider that we are starting the connection to the peer
-        protocol = HathorProtocol('testnet', peer_id, None, node=manager, use_ssl=True, inbound=False)
+        # TODO: also test with sync-v2 enabled
+        protocol = HathorProtocol('testnet', peer_id, None, node=manager, use_ssl=True, inbound=False,
+                                  enable_sync_v1=self._enable_sync_v1, enable_sync_v2=self._enable_sync_v2)
         protocol.connection_string = 'tcp://127.0.0.1:40403'
         result = yield peer_id.validate_entrypoint(protocol)
         self.assertTrue(result)
@@ -188,7 +194,9 @@ class PeerIdTest(unittest.TestCase):
 
     def test_validate_certificate(self):
         peer = PeerId('testnet')
-        protocol = HathorProtocol('testnet', peer, None, node=None, use_ssl=True, inbound=True)
+        # TODO: also test with sync-v2 enabled
+        protocol = HathorProtocol('testnet', peer, None, node=None, use_ssl=True, inbound=True,
+                                  enable_sync_v1=self._enable_sync_v1, enable_sync_v2=self._enable_sync_v2)
 
         class FakeTransport:
             def getPeerCertificate(self):
@@ -243,5 +251,20 @@ class PeerIdTest(unittest.TestCase):
         self.assertTrue(peer.can_retry(0))
 
 
-if __name__ == '__main__':
-    unittest.main()
+class SyncV1PeerIdTest(BasePeerIdTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2PeerIdTest(BasePeerIdTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgePeerIdTest(SyncV2PeerIdTest):
+    _enable_sync_v1 = True

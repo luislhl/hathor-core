@@ -19,7 +19,9 @@ from tests.utils import add_blocks_unlock_reward, add_new_blocks, add_new_tx, cr
 settings = HathorSettings()
 
 
-class SendTokensTest(_BaseResourceTest._ResourceTest):
+class BaseSendTokensTest(_BaseResourceTest._ResourceTest):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
 
@@ -575,3 +577,22 @@ class SendTokensTest(_BaseResourceTest._ResourceTest):
         })
         data = response.json_value()
         self.assertFalse(data['success'])
+
+
+class SyncV1SendTokensTest(BaseSendTokensTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2SendTokensTest(BaseSendTokensTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeSendTokensTest(SyncV2SendTokensTest):
+    _enable_sync_v1 = True

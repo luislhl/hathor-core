@@ -13,7 +13,9 @@ from tests.utils import add_blocks_unlock_reward, add_new_blocks
 settings = HathorSettings()
 
 
-class MultisigTestCase(unittest.TestCase):
+class BaseMultisigTestCase(unittest.TestCase):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
 
@@ -139,3 +141,22 @@ class MultisigTestCase(unittest.TestCase):
         # Script error
         with self.assertRaises(ScriptError):
             create_output_script(base58.b58decode('55d14K5jMqsN2uwUEFqiPG5SoD7Vr1BfnH'))
+
+
+class SyncV1MultisigTestCase(BaseMultisigTestCase):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2MultisigTestCase(BaseMultisigTestCase):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeMultisigTestCase(SyncV2MultisigTestCase):
+    _enable_sync_v1 = True

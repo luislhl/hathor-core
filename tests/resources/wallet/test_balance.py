@@ -8,7 +8,9 @@ from tests.resources.base_resource import StubSite, _BaseResourceTest
 from tests.utils import resolve_block_bytes
 
 
-class BalanceTest(_BaseResourceTest._ResourceTest):
+class BaseBalanceTest(_BaseResourceTest._ResourceTest):
+    __test__ = False
+
     def setUp(self):
         super().setUp()
         self.web = StubSite(BalanceResource(self.manager))
@@ -33,3 +35,22 @@ class BalanceTest(_BaseResourceTest._ResourceTest):
         self.assertTrue(data2['success'])
         tokens = self.manager.get_tokens_issued_per_block(1)
         self.assertEqual(data2['balance'], {'available': tokens, 'locked': 0})
+
+
+class SyncV1BalanceTest(BaseBalanceTest):
+    __test__ = True
+
+    _enable_sync_v1 = True
+    _enable_sync_v2 = False
+
+
+class SyncV2BalanceTest(BaseBalanceTest):
+    __test__ = True
+
+    _enable_sync_v1 = False
+    _enable_sync_v2 = True
+
+
+# sync-bridge should behave like sync-v2
+class SyncBridgeBalanceTest(SyncV2BalanceTest):
+    _enable_sync_v1 = True
