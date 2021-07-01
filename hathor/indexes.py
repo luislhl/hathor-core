@@ -14,7 +14,7 @@
 
 from collections import defaultdict
 from math import inf
-from typing import TYPE_CHECKING, DefaultDict, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, cast
+from typing import TYPE_CHECKING, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, cast
 
 from intervaltree import Interval, IntervalTree
 from sortedcontainers import SortedKeyList
@@ -354,13 +354,45 @@ class TransactionsIndex:
 
 
 class WalletIndex:
-    """ Index of inputs/outputs by address
+    """ Index of inputs/outputs by address.
+
+    This index uses rocksdb and the following key format:
+
+        key = [address][tx.timestamp][tx.hash]
+              |--34b--||--4 bytes---||--32b--|
+
+    It works nicely because rocksdb uses a tree sorted by key under the hoods.
+    The timestamp must be serialized in bigendian, so ts1 > ts2 implies that bytes(ts1) > bytes(ts2).
     """
     def __init__(self, pubsub: Optional['PubSubManager'] = None) -> None:
-        self.index: DefaultDict[str, Set[bytes]] = defaultdict(set)
+        import rocksdb
+        self._db = rocksdb.DB('address.db', rocksdb.Options(create_if_missing=True))
         self.pubsub = pubsub
         if self.pubsub:
             self.subscribe_pubsub_events()
+
+    def cleanup(self) -> None:
+        """Cleanup after this index is not used anymore."""
+        del self._db
+
+    def _to_key(self, address: str, tx: Optional[BaseTransaction] = None) -> bytes:
+        import struct
+        assert len(address) == 34
+        key = address.encode('ascii')
+        if tx:
+            assert tx.hash is not None
+            key += struct.pack('>I', tx.timestamp) + tx.hash
+            assert len(key) == 34 + 4 + 32
+        return key
+
+    def _from_key(self, key: bytes) -> Tuple[str, int, bytes]:
+        import struct
+        assert len(key) == 34 + 4 + 32
+        address = key[:34].decode('ascii')
+        timestamp: int
+        (timestamp,) = struct.unpack('>I', key[34:38])
+        tx_hash = key[38:]
+        return address, timestamp, tx_hash
 
     def subscribe_pubsub_events(self) -> None:
         """ Subscribe wallet index to receive voided/winner tx pubsub events
@@ -411,7 +443,7 @@ class WalletIndex:
 
         addresses = self._get_addresses(tx)
         for address in addresses:
-            self.index[address].add(tx.hash)
+            self._db.put(self._to_key(address, tx), b'')
 
         self.publish_tx(tx, addresses=addresses)
 
@@ -422,7 +454,7 @@ class WalletIndex:
 
         addresses = self._get_addresses(tx)
         for address in addresses:
-            self.index[address].discard(tx.hash)
+            self._db.delete(self._to_key(address, tx))
 
     def handle_tx_event(self, key: HathorEvents, args: 'EventArguments') -> None:
         """ This method is called when pubsub publishes an event that we subscribed
@@ -433,18 +465,31 @@ class WalletIndex:
         if meta.has_voided_by_changed_since_last_call() or meta.has_spent_by_changed_since_last_call():
             self.publish_tx(tx)
 
+    def _get_from_address_iter(self, address: str) -> Iterable[bytes]:
+        it = self._db.iterkeys()
+        it.seek(self._to_key(address))
+        for key in it:
+            addr, _, tx_hash = self._from_key(key)
+            if addr != address:
+                break
+            yield tx_hash
+
     def get_from_address(self, address: str) -> List[bytes]:
         """ Get list of transaction hashes of an address
         """
-        return list(self.index[address])
+        return list(self._get_from_address_iter(address))
 
     def get_sorted_from_address(self, address: str) -> List[bytes]:
         """ Get a sorted list of transaction hashes of an address
         """
-        return sorted(self.index[address])
+        return list(self._get_from_address_iter(address))
 
     def is_address_empty(self, address: str) -> bool:
-        return not bool(self.index[address])
+        it = self._db.iterkeys()
+        it.seek(self._to_key(address))
+        key = it.get()
+        addr, _, _ = self._from_key(key)
+        return addr == address
 
 
 class TokensIndex:

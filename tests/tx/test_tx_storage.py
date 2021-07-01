@@ -102,6 +102,8 @@ class _BaseTransactionStorageTest:
             self.tx_storage.enable_lock()
 
         def tearDown(self):
+            if self.tx_storage:
+                self.tx_storage.cleanup()
             shutil.rmtree(self.tmpdir)
 
         def test_genesis_ref(self):
@@ -228,7 +230,7 @@ class _BaseTransactionStorageTest:
             wallet_index = self.tx_storage.wallet_index
             addresses = wallet_index._get_addresses(tx)
             for address in addresses:
-                self.assertNotIn(tx.hash, wallet_index.index[address])
+                self.assertNotIn(tx.hash, wallet_index.get_from_address(address))
 
             # TODO Check self.tx_storage.tokens_index
 

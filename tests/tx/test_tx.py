@@ -61,6 +61,10 @@ class BasicTransaction(unittest.TestCase):
         blocks = add_blocks_unlock_reward(self.manager)
         self.last_block = blocks[-1]
 
+    def tearDown(self):
+        if self.tx_storage:
+            self.tx_storage.cleanup()
+
     def test_input_output_match(self):
         genesis_block = self.genesis_blocks[0]
 
@@ -824,7 +828,7 @@ class BasicTransaction(unittest.TestCase):
 
         address_b58 = parse_address_script(script).address
         # Get how many transactions wallet index already has for this address
-        wallet_index_count = len(self.tx_storage.wallet_index.index[address_b58])
+        wallet_index_count = len(self.tx_storage.wallet_index.get_from_address(address_b58))
 
         _input = TxInput(genesis_block.hash, 0, b'')
         tx = Transaction(weight=1, inputs=[_input], outputs=[output], parents=parents,
@@ -838,7 +842,7 @@ class BasicTransaction(unittest.TestCase):
         self.manager.propagate_tx(tx)
 
         # This transaction has an output to address_b58, so we need one more element on the index
-        self.assertEqual(len(self.tx_storage.wallet_index.index[address_b58]), wallet_index_count + 1)
+        self.assertEqual(len(self.tx_storage.wallet_index.get_from_address(address_b58)), wallet_index_count + 1)
 
         # Second transaction: spend tokens from output with address=address_b58 and
         # send tokens to 2 outputs, one with address=address_b58 and another one
@@ -863,8 +867,8 @@ class BasicTransaction(unittest.TestCase):
 
         # tx2 has two outputs, for address_b58 and new_address_b58
         # So we must have one more element on address_b58 index and only one on new_address_b58
-        self.assertEqual(len(self.tx_storage.wallet_index.index[address_b58]), wallet_index_count + 2)
-        self.assertEqual(len(self.tx_storage.wallet_index.index[new_address_b58]), 1)
+        self.assertEqual(len(self.tx_storage.wallet_index.get_from_address(address_b58)), wallet_index_count + 2)
+        self.assertEqual(len(self.tx_storage.wallet_index.get_from_address(new_address_b58)), 1)
 
         # Third transaction: spend tokens from output with address=address_b58 and send
         # tokens to a new address = output3_address_b58, which is from a random wallet
@@ -887,9 +891,9 @@ class BasicTransaction(unittest.TestCase):
         # tx3 has one output, for another new address (output3_address_b58) and it's spending an output of address_b58
         # So address_b58 index must have one more element and output3_address_b58 should have one element also
         # new_address_b58 was not spent neither received tokens, so didn't change
-        self.assertEqual(len(self.tx_storage.wallet_index.index[address_b58]), wallet_index_count + 3)
-        self.assertEqual(len(self.tx_storage.wallet_index.index[output3_address_b58]), 1)
-        self.assertEqual(len(self.tx_storage.wallet_index.index[new_address_b58]), 1)
+        self.assertEqual(len(self.tx_storage.wallet_index.get_from_address(address_b58)), wallet_index_count + 3)
+        self.assertEqual(len(self.tx_storage.wallet_index.get_from_address(output3_address_b58)), 1)
+        self.assertEqual(len(self.tx_storage.wallet_index.get_from_address(new_address_b58)), 1)
 
     def test_sighash_cache(self):
         from unittest import mock

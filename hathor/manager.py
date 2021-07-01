@@ -281,12 +281,17 @@ class HathorManager:
         if self.wallet:
             self.wallet.stop()
 
+        self.cleanup()
+
         if self.stratum_factory:
             wait_stratum = self.stratum_factory.stop()
             if wait_stratum:
                 waits.append(wait_stratum)
-
         return defer.DeferredList(waits)
+
+    def cleanup(self) -> None:
+        """Cleanup after it is not used anymore."""
+        self.tx_storage.cleanup()
 
     def do_discovery(self) -> None:
         """

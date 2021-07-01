@@ -129,6 +129,11 @@ class TransactionStorage(ABC):
         # XXX: if there is more than one they must all have the same score, must always have at least one hash
         self._parent_blocks_index: Set[bytes] = {BLOCK_GENESIS.hash}
 
+    def cleanup(self) -> None:
+        """Cleanup after this storage is not used anymore."""
+        if self.wallet_index:
+            self.wallet_index.cleanup()
+
     # rev-dep-index methods:
 
     def count_deps_index(self) -> int:
