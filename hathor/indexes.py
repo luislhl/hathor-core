@@ -362,11 +362,13 @@ class WalletIndex:
               |--34b--||--4 bytes---||--32b--|
 
     It works nicely because rocksdb uses a tree sorted by key under the hoods.
-    The timestamp must be serialized in bigendian, so ts1 > ts2 implies that bytes(ts1) > bytes(ts2).
+
+    The timestamp must be serialized in big-endian, so ts1 > ts2 implies that bytes(ts1) > bytes(ts2),
+    hence the transactions are sorted by timestamp.
     """
-    def __init__(self, pubsub: Optional['PubSubManager'] = None) -> None:
+    def __init__(self, path: str, pubsub: Optional['PubSubManager'] = None) -> None:
         import rocksdb
-        self._db = rocksdb.DB('address.db', rocksdb.Options(create_if_missing=True))
+        self._db = rocksdb.DB(path, rocksdb.Options(create_if_missing=True))
         self.pubsub = pubsub
         if self.pubsub:
             self.subscribe_pubsub_events()
